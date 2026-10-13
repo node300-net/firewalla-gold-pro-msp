@@ -1,0 +1,34 @@
+# VLAN-Plan Firewalla Gold Pro <-> Sovereign Datacenter
+# Planungsartefakt (kein Firewalla-Importformat). Lizenz: MIT
+version: 1
+updated: 2026-10-13
+site: schaan-lab
+firewall:
+  model: firewalla-gold-pro
+  mode: router            # Gold Pro: kein Simple Mode
+  ports:
+    p1: { speed: 10G, role: wan1, peer: isp-ont, wan_type: "<<DHCP|PPPOE|STATIC>>" }
+    p2: { speed: 2.5G, role: wan2, peer: "<<LTE_OR_ISP2>>", multiwan: failover }
+    p3: { speed: 2.5G, role: lan-access, vlan_untagged: 10, note: break-glass-admin }
+    p4: { speed: 10G, role: lan-trunk, tagged: [10, 100], peer: huawei-s220s-sfpplus, transceiver: 10GBASE-T-SFP+, verified: false }
+vlans:
+  - { id: 10,  name: MGMT,        cidr: 10.10.10.0/24,  gateway: firewalla, gw_ip: 10.10.10.1, dhcp: true, dns: unbound }
+  - { id: 20,  name: OOB,         cidr: 10.10.20.0/24,  gateway: none, on_firewalla: false }
+  - { id: 30,  name: COROSYNC,    cidr: 10.10.30.0/24,  gateway: none, on_firewalla: false }
+  - { id: 40,  name: STORAGE,     cidr: 10.10.40.0/24,  gateway: none, on_firewalla: false }
+  - { id: 50,  name: DMZ-HONEY,   cidr: 10.10.50.0/24,  gateway: node0, routed_via: 172.16.100.2, nat_on_firewalla: true }
+  - { id: 60,  name: LAB-REDTEAM, cidr: 10.10.60.0/24,  gateway: node0, routed_via: 172.16.100.2, nat_on_firewalla: false, internet: deny }
+  - { id: 70,  name: SPAN,        cidr: null,           gateway: none, on_firewalla: false, mirror_to: node3 }
+  - { id: 80,  name: ANALYTICS,   cidr: 10.10.80.0/24,  gateway: node0, routed_via: 172.16.100.2, nat_on_firewalla: true }
+  - { id: 100, name: WAN-TRANSIT, cidr: 172.16.100.0/29, gateway: firewalla, gw_ip: 172.16.100.1, peer_ip: 172.16.100.2 }
+static_routes:
+  - { dst: 10.10.50.0/24, via: 172.16.100.2 }
+  - { dst: 10.10.60.0/24, via: 172.16.100.2 }
+  - { dst: 10.10.80.0/24, via: 172.16.100.2 }
+port_forwards:
+  - { name: cowrie-ssh, proto: tcp, wan_port: 22, to: 172.16.100.2, to_port: 22, then: "node0 DNAT -> 10.10.50.21:2222" }
+hosts:
+  node0: { mgmt: 10.10.10.10, transit: 172.16.100.2, role: sec-core }
+  node1: { mgmt: 10.10.10.11, dmz: 10.10.50.21, role: cowrie }
+  node2: { mgmt: 10.10.10.12, analytics: 10.10.80.12, role: ml }
+  node3: { mgmt: 10.10.10.13, analytics: 10.10.80.13, span_if: "<<NODE3_SPAN_IF>>", role: suricata-syslog }

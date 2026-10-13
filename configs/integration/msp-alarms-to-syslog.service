@@ -1,0 +1,18 @@
+# /etc/systemd/system/msp-alarms-to-syslog.service - Lizenz: MIT
+[Unit]
+Description=Firewalla MSP alarms -> local syslog (Node 3)
+Wants=network-online.target
+After=network-online.target rsyslog.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/firewalla-msp.env
+Environment=STATE_FILE=/var/lib/firewalla-msp/seen.json
+StateDirectory=firewalla-msp
+ExecStart=/usr/local/bin/msp-alarms-to-syslog.py --once
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

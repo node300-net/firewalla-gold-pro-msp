@@ -1,0 +1,43 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# Secrets & lokale Overrides
+.env
+.env.*
+*.env
+!*.env.example
+*.key
+*.pem
+*.psk
+psk
+*.pub.local
+wg*.conf
+!*.conf.example
+firewalla-msp.env
+msp-token*
+secrets/
+credentials/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# State / Logs / Exporte (MSP-CSV-Exporte enthalten personenbezogene Flows!)
+seen.json
+*.log
+exports/
+*.csv
+tmp/
+.cache/
+
+# Archive
+*.zip
+*.tar.gz

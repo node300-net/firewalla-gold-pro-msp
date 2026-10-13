@@ -1,0 +1,32 @@
+# Auszug fuer /etc/suricata/suricata.yaml auf Node 3 (Suricata 7/8)
+# Nur relevante Abschnitte - in bestehende Datei einarbeiten. Lizenz: MIT
+vars:
+  address-groups:
+    HOME_NET: "[10.10.0.0/16,172.16.100.0/29]"
+    EXTERNAL_NET: "!$HOME_NET"
+    HONEYPOT_NET: "[10.10.50.0/24]"
+
+af-packet:
+  - interface: <<NODE3_SPAN_IF>>       # SPAN-Interface ohne IP, promisc
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    tpacket-v3: yes
+
+outputs:
+  # Lokale Datei (Retention auf Node 3)
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types: [alert, anomaly, dns, tls, http, ssh, flow]
+  # Zusaetzlich an Syslog (die alte 'syslog'-Output-Variante ist ab Suricata 8 deprecated;
+  # Suricata-Doku empfiehlt eve mit filetype syslog)
+  - eve-log:
+      enabled: yes
+      filetype: syslog
+      facility: local5
+      level: Info
+      identity: suricata
+      types: [alert, anomaly]

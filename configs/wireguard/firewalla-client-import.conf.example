@@ -1,0 +1,15 @@
+# Import in Firewalla-App: VPN Client -> Create VPN Connection -> WireGuard -> Import
+# Danach KEIN "Apply To" auf ganze Netze, sondern Routes (PBR) fuer 10.30.10.0/24.
+# Platzhalter ersetzen. Lizenz: MIT
+[Interface]
+PrivateKey = <<FIREWALLA_CLIENT_PRIVATE_KEY>>
+Address    = 10.255.0.2/30
+# DNS bewusst leer lassen -> Firewalla-DNS (DoH/Unbound) bleibt aktiv
+
+[Peer]
+PublicKey           = <<SITE_B_PUBLIC_KEY>>
+PresharedKey        = <<PSK>>
+Endpoint            = <<site-b.example.net>>:51820
+# Nur Off-Site-Netz + Tunnel -> kein Full-Tunnel
+AllowedIPs          = 10.255.0.0/30, 10.30.10.0/24
+PersistentKeepalive = 25

@@ -1,0 +1,11 @@
+# /etc/systemd/system/msp-alarms-to-syslog.timer - Lizenz: MIT
+[Unit]
+Description=Poll Firewalla MSP alarms every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+RandomizedDelaySec=20s
+
+[Install]
+WantedBy=timers.target

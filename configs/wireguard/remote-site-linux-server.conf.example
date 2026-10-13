@@ -1,0 +1,20 @@
+# /etc/wireguard/wg0.conf  -- Off-Site Linux WireGuard-Server (Gegenstelle zur Gold Pro)
+# Platzhalter ersetzen. Schluessel nie committen. Lizenz: MIT
+[Interface]
+Address    = 10.255.0.1/30
+ListenPort = 51820
+PrivateKey = <<SITE_B_PRIVATE_KEY>>
+# Routing ins lokale Netz der Off-Site-Seite
+PostUp   = sysctl -w net.ipv4.ip_forward=1
+PostUp   = nft add table inet wgfw; nft add chain inet wgfw fwd '{ type filter hook forward priority 0; policy drop; }'
+PostUp   = nft add rule inet wgfw fwd ct state established,related accept
+# Nur Schaan-MGMT -> PBS (8007/tcp) erlauben
+PostUp   = nft add rule inet wgfw fwd iifname "wg0" ip saddr { 10.255.0.2, 10.10.10.0/24 } ip daddr 10.30.10.20 tcp dport 8007 accept
+PostDown = nft delete table inet wgfw
+
+[Peer]
+# Firewalla Gold Pro (Schaan) als Client
+PublicKey    = <<FIREWALLA_CLIENT_PUBLIC_KEY>>
+PresharedKey = <<PSK>>
+# Tunnel-IP der Firewalla + Netze, die von Schaan kommen duerfen (ohne NAT auf Firewalla-Seite)
+AllowedIPs   = 10.255.0.2/32, 10.10.10.0/24

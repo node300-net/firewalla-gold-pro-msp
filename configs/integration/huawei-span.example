@@ -1,0 +1,15 @@
+# Huawei VRP Port-Mirroring (lokales SPAN) - Firewalla-Uplink -> Node 3
+# !!! UNVERIFIZIERT fuer S220S-24LP4JX: Syntax entspricht klassischem Huawei-S-Series-VRP.
+# !!! Manche S2xx-Modelle sind primaer Web-/Cloud-verwaltet. Vorher im Hardware-/Config-Guide pruefen.
+# Interface-Namen sind Platzhalter. Lizenz: MIT
+system-view
+ observe-port 1 interface <<NODE3_SPAN_PORT>>          # z. B. XGigabitEthernet0/0/2 (X710 von Node 3)
+ interface <<FIREWALLA_UPLINK_PORT>>                    # z. B. XGigabitEthernet0/0/1 (10GBASE-T-SFP+ zur Gold Pro)
+  port-mirroring to observe-port 1 both
+ quit
+ interface <<NODE3_SPAN_PORT>>
+  description SPAN-to-Node3-Suricata
+ quit
+return
+save
+# Pruefen: display port-mirroring  /  display observe-port

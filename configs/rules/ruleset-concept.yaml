@@ -1,0 +1,95 @@
+# Regelwerk-Konzept fuer Firewalla Gold Pro (Perimeter) im Sovereign-Datacenter
+# ---------------------------------------------------------------------------
+# Planungsartefakt in Firewalla-Semantik (App/MSP: Action, Target, Scope, Schedule).
+# KEIN offizielles Importformat. Umsetzung manuell in App/MSP oder per eigenem
+# Skript gegen die MSP-API (Endpunkte/Schema in https://docs.firewalla.net/ pruefen).
+# Defense in Depth: Node0-nftables (Companion-Repo) setzt dieselben Absichten um.
+# Lizenz: MIT
+version: 1
+updated: 2026-10-13
+
+target_lists:
+  - name: tl-lab-nets
+    targets: [10.10.50.0/24, 10.10.60.0/24, 10.10.80.0/24]
+  - name: tl-honeypot-attackers
+    source: "Node1 Cowrie -> Node3 Skript -> MSP-API Target-List-Update (Konzept)"
+    max_targets: 2000            # MSP Professional/Business Limit pro Liste
+  - name: tl-update-mirrors
+    targets: [deb.debian.org, security.debian.org, download.proxmox.com, "<<WEITERE>>"]
+
+controls:                      # "Controls"-Center (App 1.69+/MSP 2.11)
+  advanced_threat_filtering: on
+  region_blocking: { inbound: ["<<ISO_CODES>>"], note: "nur Ingress; Honeypot soll weltweit erreichbar bleiben -> Ausnahme fuer Port-Forward pruefen" }
+  bypass_prevention: { scope: [vlan10], note: "erzwingt Firewalla-DNS; NICHT fuer Lab-VLANs (verfaelscht Analysen)" }
+  content_filtering: off
+  safe_search: off
+
+protect:
+  active_protect_default: on
+  suricata: on                 # nur Gold Pro; Durchsatz nach Aktivierung messen
+  msp_engine: "on wenn 30/180-Tage-Seat"
+  device_active_protect: { scope: [vlan10-iot-devices] }
+  new_device_quarantine: { scope: [vlan10], group: quarantine }
+
+rules:
+  # --- Ingress ---------------------------------------------------------------
+  - id: R-000
+    desc: "Ingress Firewall (Firewalla-Default) - NICHT loeschen"
+    action: block
+    direction: inbound
+    target: internet
+    scope: all
+  - id: R-010
+    desc: "Port-Forward SSH -> Node0 Transit (DNAT zu Cowrie erfolgt auf Node0)"
+    type: port_forward
+    wan_port: 22/tcp
+    to: 172.16.100.2:22
+  # --- Lab-Isolation ---------------------------------------------------------
+  - id: R-100
+    desc: "LAB-REDTEAM hat kein Internet"
+    action: block
+    direction: outbound
+    scope: { network_cidr: 10.10.60.0/24 }
+    target: internet
+  - id: R-110
+    desc: "DMZ-HONEY Egress: nur DNS zur Firewalla + Update-Mirrors"
+    action: allow
+    scope: { network_cidr: 10.10.50.0/24 }
+    target: { target_list: tl-update-mirrors, ports: [80/tcp, 443/tcp] }
+  - id: R-111
+    desc: "DMZ-HONEY sonstiger Egress blockiert (Honeypot darf kein Sprungbrett sein)"
+    action: block
+    scope: { network_cidr: 10.10.50.0/24 }
+    target: internet
+    order_note: "Allow R-110 muss Vorrang haben - Firewalla-Regelprioritaet in App pruefen (Allow vs Block)"
+  - id: R-120
+    desc: "Lab-Netze duerfen MGMT nicht erreichen"
+    action: block
+    scope: { target_list: tl-lab-nets }
+    target: { network: vlan10 }
+    note: "Wirksam nur fuer Traffic, der die Firewalla passiert; Node0 filtert zusaetzlich"
+  # --- MGMT ------------------------------------------------------------------
+  - id: R-200
+    desc: "Proxmox-GUI/SSH nur aus MGMT und WireGuard-Admin-Netz"
+    action: allow
+    scope: { networks: [vlan10, wg-admin] }
+    target: { cidrs: [10.10.10.10-13], ports: [8006/tcp, 22/tcp] }
+  - id: R-210
+    desc: "Analytics/Node3 darf MSP-API erreichen"
+    action: allow
+    scope: { hosts: [10.10.10.13, 10.10.80.13] }
+    target: { domain: "<<yourmsp>>.firewalla.net", ports: [443/tcp] }
+  # --- Zeitsteuerung ----------------------------------------------------------
+  - id: R-300
+    desc: "ANALYTICS Internet nur waehrend Wartungsfenster (optional)"
+    action: block
+    scope: { network_cidr: 10.10.80.0/24 }
+    target: internet
+    schedule: { except: "Mo-Fr 08:00-18:00 Europe/Zurich" }
+
+smart_queue:
+  enabled: false               # erst nach Messung; Herstellerlab: PPPoE+CAKE ~2.44 Gbps
+  candidate: { mode: adaptive, aqm: fq_codel }
+
+vpn:
+  wireguard_server: { enabled: true, network: wg-admin, cidr: "<<10.10.99.0/24>>", ipv6: off }
